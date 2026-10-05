@@ -1,0 +1,113 @@
+name: VSKCHAT_BUILDER
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create vskchat Project
+        run: |
+          # 1. Create Folders
+          mkdir -p app/src/main/java/com/vsk/chat
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+
+          # 2. Create Settings
+          echo "rootProject.name='vskchat'" > settings.gradle
+          echo "include ':app'" >> settings.gradle
+
+          # 3. Create Build Script
+          cat <<EOF > build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.1' }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          EOF
+
+          # 4. Create App Script
+          cat <<EOF > app/build.gradle
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.vsk.chat'
+              compileSdk 33
+              defaultConfig {
+                  applicationId "com.vsk.chat"
+                  minSdk 24
+                  targetSdk 33
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.9.0'
+              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+          }
+          EOF
+
+          # 5. Create Android Manifest
+          cat <<EOF > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <application android:label="vskchat" android:theme="@style/Theme.Material3.Dark">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # 6. Create MainActivity (The App Code)
+          cat <<EOF > app/src/main/java/com/vsk/chat/MainActivity.kt
+          package com.vsk.chat
+          import android.os.Bundle
+          import android.widget.*
+          import android.graphics.Color
+          import androidx.appcompat.app.AppCompatActivity
+
+          class MainActivity : AppCompatActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  val layout = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setBackgroundColor(Color.parseColor("#0F0F12"))
+                      gravity = android.view.Gravity.CENTER
+                      setPadding(50, 50, 50, 50)
+                  }
+                  val title = TextView(this).apply {
+                      text = "vskchat"
+                      textSize = 32f
+                      setTextColor(Color.parseColor("#00E676"))
+                      gravity = android.view.Gravity.CENTER
+                  }
+                  val btn = Button(this).apply {
+                      text = "START SECURE CHAT"
+                      setBackgroundColor(Color.parseColor("#6200EE"))
+                      setTextColor(Color.WHITE)
+                  }
+                  layout.addView(title)
+                  layout.addView(btn)
+                  setContentView(layout)
+              }
+          }
+          EOF
+
+      - name: Build APK with Gradle
+        run: gradle assembleDebug
+
+      - name: Upload vskchat APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: vskchat-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
